@@ -17,23 +17,28 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject API Key
+      - name: Inject API Key using Python
         run: |
-          sed -i "s|__OPENAI_API_KEY__|${{ secrets.OPENAI_API_KEY }}|g" index.html
-          echo "✅ API key inyectada correctamente"
-
-      - name: Verify injection
-        run: |
-          if grep -q "__OPENAI_API_KEY__" index.html; then
-            echo "❌ ERROR: El placeholder no fue reemplazado"
-            exit 1
-          else
-            echo "✅ Placeholder reemplazado correctamente"
-          fi
+          python3 - <<PYEOF
+          import os
+          key = os.environ.get('OPENAI_API_KEY', '')
+          with open('index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          content = content.replace('__OPENAI_API_KEY__', key)
+          with open('index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          if '__OPENAI_API_KEY__' in content:
+              print('ERROR: placeholder no reemplazado')
+              exit(1)
+          else:
+              print(f'OK: API key inyectada ({len(key)} caracteres)')
+          PYEOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
