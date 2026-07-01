@@ -12,30 +12,44 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject API Key into index.html
+      - name: Inject API Key
         run: |
-          sed -i 's|__OPENAI_API_KEY__|${{ secrets.OPENAI_API_KEY }}|g' index.html
+          sed -i "s|__OPENAI_API_KEY__|${{ secrets.OPENAI_API_KEY }}|g" index.html
+          echo "✅ API key inyectada correctamente"
+
+      - name: Verify injection
+        run: |
+          if grep -q "__OPENAI_API_KEY__" index.html; then
+            echo "❌ ERROR: El placeholder no fue reemplazado"
+            exit 1
+          else
+            echo "✅ Placeholder reemplazado correctamente"
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
