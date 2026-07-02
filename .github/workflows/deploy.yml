@@ -15,15 +15,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject API Key using Python
+      - name: Inject API Key
         run: |
           python3 - <<PYEOF
           import os
@@ -36,25 +39,17 @@ jobs:
           if '__OPENAI_API_KEY__' in content:
               print('ERROR: placeholder no reemplazado')
               exit(1)
-          else:
-              print(f'OK: API key inyectada ({len(key)} caracteres)')
+          print(f'OK: {len(key)} caracteres inyectados')
           PYEOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
