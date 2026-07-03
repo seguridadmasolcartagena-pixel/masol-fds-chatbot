@@ -1,0 +1,45 @@
+name: Deploy MASOL FDS Chatbot
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inject:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inject API Key and commit
+        run: |
+          python3 - <<PYEOF
+          import os
+          key = os.environ.get('OPENAI_API_KEY', '')
+          with open('index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          if '__OPENAI_API_KEY__' not in content:
+              print('INFO: placeholder no encontrado, nada que hacer')
+              exit(0)
+          content = content.replace('__OPENAI_API_KEY__', key)
+          with open('index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          print(f'OK: {len(key)} caracteres inyectados')
+          PYEOF
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet index.html; then
+            echo "Sin cambios"
+          else
+            git add index.html
+            git commit -m "chore: inject API key [skip ci]"
+            git push
+          fi
